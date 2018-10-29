@@ -3,17 +3,17 @@ Offboards a user in AD and O365
 
 # Description
 - Disables a user in AD and O365 in a hybrid environment
-- Disables AD account
+- Disable AD account
 - Move to 'Disabled Users' OU
 - Change AD password
 - Remove from groups
 - Remove manager
-- Disable OWA, ActiveSync
+- Disable OWA and ActiveSync
 - Hide from address book
 - Add comment to description
 - Forward email
 - Partial wipe mobile devices
-- add user to litigation hold
+- Add user to litigation hold
 
 # Requirements
 - Powershell v4
