@@ -25,14 +25,17 @@
 # Multi-Factor authentication for O365 module (Exchange Online Remote PowerShell Module) installed for the user running the script. 
 # See: https://docs.microsoft.com/en-us/powershell/exchange/exchange-online/connect-to-exchange-online-powershell/mfa-connect-to-exchange-online-powershell?view=exchange-ps
 
-
-Import-Module ActiveDirectory
-Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync"
-
 # for password generator
 Add-Type -AssemblyName System.Web
 
 $LogPath = "C:\Scripts\logs\Offboard-Employee\Offboard-Employee_" + (Get-Date -Format MMddyy_hhmm) + ".log"
+
+# Rename this to match your domain
+$TargetOU = "OU=Disabled Users,DC=domain,DC=com"
+
+
+Import-Module ActiveDirectory
+Import-Module -Name "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync"
 
 function Get-User {
     $ADuser = $null
@@ -51,7 +54,7 @@ function Get-User {
     return $ADUser
 } # End Get-User
 
-function Disable-User ($ADUser,$WONumber) {
+function Disable-User ($ADUser,$WONumber,$TargetOU) {
     $Forward = Read-Host "Do you want to forward email sent to this user? (Y/N)"
     if ($Forward -eq 'y') {Set-Forwarding $ADUser}
     Write-Host "Disabling AD account..."
@@ -75,7 +78,7 @@ function Disable-User ($ADUser,$WONumber) {
     Set-Mailbox $ADUser.UserPrincipalName -LitigationHoldEnabled $true
     # do this last
     Write-Host "Moving to Disabled Users OU..."
-    $ADUser | Move-ADObject -TargetPath "OU=Disabled Users,DC=gablesnet,DC=com"
+    $ADUser | Move-ADObject -TargetPath $TargetOU
 } # End Disable-User
 
 function Wipe-MobileDevices ($ADUser){
@@ -106,7 +109,7 @@ function Block-Device ($ADUser,$DeviceType,$DeviceUserAgent,$DeviceID,$DeviceIde
     -EwsBlockList @{Add=$DeviceID} -popenabled:$false -imapenabled:$false -OWAEnabled:$false -OWAforDevicesEnabled $false -ActiveSyncEnabled:$false
     # Wipe Device
     Write-Host "Wiping account information from" $DeviceIdentity
-    get-mobiledevice -mailbox $ADUser.mail |  Clear-MobileDevice -AccountOnly -confirm:$false -NotificationEmailAddresses malexios@gables.com
+    get-mobiledevice -mailbox $ADUser.mail |  Clear-MobileDevice -AccountOnly -confirm:$false
 }
 
 function Set-Password ($ADUser) {
@@ -160,15 +163,16 @@ function Check-UserIsDisabled ($ADUser) {
 
 function Set-Forwarding ($ADUSer){
     # Creates a rule so that the new recipient sees that it is forwarded. Set-Mailbox -ForwardingAddress and -ForwardingsmtpAddress make it appear that the email was sent directly and not forwarded.
+    # Commented out email address validation. Edit and un-comment to enable.
     [bool]$EmailAddressIsOK = $false
     $ForwardingAddress = ""
     Write-Host " "
     while (!$EmailAddressIsOK){
         Write-Host " "
         $ForwardingAddress = Read-Host "Enter email address to forward to"
-        if ($ForwardingAddress -like "*@gables.com" -and (Get-Recipient -Identity $ForwardingAddress)){
-            $EmailAddressIsOK = $true
-        } else {Write-Host "The email address is not correct." -ForegroundColor Red}
+        # if ($ForwardingAddress -like "*@domain.com" -and (Get-Recipient -Identity $ForwardingAddress)){
+             $EmailAddressIsOK = $true
+        # } else {Write-Host "The email address is not correct." -ForegroundColor Red}
     }
     Write-Host "Creating client forwarding rule..."
     try {New-InboxRule -Name ForwardAll -Mailbox $ADUser.mail -ForwardTo:$ForwardingAddress -Confirm:$false} catch {}
@@ -185,7 +189,7 @@ do {
     Write-Host
     Write-Host "Disabling account for" $ADUser.Name -ForegroundColor Yellow
     $confirmation = Read-Host "Are you Sure You Want To Proceed (Y/N)"
-    if ($confirmation -eq 'y') {Disable-User $ADUser $WONumber}
+    if ($confirmation -eq 'y') {Disable-User $ADUser $WONumber $TargetOU}
     Write-Host
     Write-Host "Testing..."
     Check-UserIsDisabled $ADUser
