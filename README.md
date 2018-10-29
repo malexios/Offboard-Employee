@@ -1,5 +1,5 @@
 # Offboard-Employee
-Offboards a user in AD and O365 in a hybrid environment
+Offboards a user in AD and O365
 
 # Description
 - Disables a user in AD and O365 in a hybrid environment
